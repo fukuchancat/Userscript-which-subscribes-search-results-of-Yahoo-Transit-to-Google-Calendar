@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Yahoo!路線情報の検索結果をGoogleカレンダーに登録するユーザースクリプト
-// @version      0.1
+// @version      0.2
 // @description  Yahoo!路線情報の検索結果を、Googleカレンダーに登録するリンクを作成するユーザースクリプトです。ルート全体を一つの予定として登録するのではなく、乗り換えごとに別々の予定として登録します。登録の際、列車名を予定のタイトル、列車の出発・到着時刻を予定の開始・終了時刻、出発駅を予定の場所、発着番線を予定の説明欄に記載します。徒歩は登録しません。深夜バスなど日を跨ぐルートにも対応しています。
 // @author       fukuchan
 // @include      https://transit.yahoo.co.jp/search/*
@@ -48,9 +48,10 @@ const subscribe = event => {
         const transport = access.querySelector(".transport div");
         const text = transport.textContent.replace(/(\n|\[.*\])/g, "");
 
-        // 発着番線
+        // 発着番線・短縮URL
         const platform = access.querySelector(".platform");
-        const details = platform ? platform.textContent : "";
+        const shortUrl = detail.querySelector(".shortUrl");
+        const details = [platform?.textContent, shortUrl.value].filter(str => str).join("\n");
 
         // 出発・到着時刻
         const departureTime = origin.querySelector(".time li:last-child");
@@ -58,7 +59,7 @@ const subscribe = event => {
         const dates = departureTime.dataset.date + "/" + arrivalTime.dataset.date;
 
         // GoogleカレンダーのURL生成
-        const url = new URL("http://www.google.com/calendar/event?action=TEMPLATE");
+        const url = new URL("https://www.google.com/calendar/event?action=TEMPLATE");
         url.searchParams.append("location", location);
         url.searchParams.append("text", text);
         url.searchParams.append("details", details);
@@ -75,23 +76,29 @@ if (type == 5) {
     return;
 }
 
-// 既存の「カレンダーに登録」ボタンを取得し、隣に新しいボタンを追加する
-const shareCals = document.querySelectorAll(".shareCal");
-for (let yahooShareCal of shareCals) {
-    // 「Googleカレンダーに登録」ボタンを作成
-    const li = document.createElement("li");
-    const icon = yahooShareCal.closest("li").querySelector(".icnCal").cloneNode(true);
-    const googleShareCal = document.createElement("a");
+// 既存の「カレンダーに登録」ボタンを取得し、隣に新しいボタンを追加する処理を1秒おきに10回試行する
+let i = 0;
+const intervalId = setInterval(() => {
+    const shareCals = document.querySelectorAll(".shareCal");
+    if (i === 10 || shareCals.length > 0) {
+        clearInterval(intervalId);
+    }
+    for (let yahooShareCal of shareCals) {
+        // 「Googleカレンダーに登録」ボタンを作成
+        const li = document.createElement("li");
+        const icon = yahooShareCal.closest("li").querySelector(".icnCal").cloneNode(true);
+        const googleShareCal = document.createElement("a");
 
-    // ボタンにイベントを設定
-    googleShareCal.href = "javascript:void(0);";
-    googleShareCal.addEventListener("click", subscribe);
+        // ボタンにイベントを設定
+        googleShareCal.href = "javascript:void(0);";
+        googleShareCal.addEventListener("click", subscribe);
 
-    // ボタンの文言変更
-    yahooShareCal.textContent = "Yahoo!カレンダーに登録";
-    googleShareCal.textContent = "Googleカレンダーに登録";
+        // ボタンの文言変更
+        yahooShareCal.textContent = "Yahoo!カレンダーに登録";
+        googleShareCal.textContent = "Googleカレンダーに登録";
 
-    // ボタンをDOMに追加
-    li.append(icon, googleShareCal);
-    yahooShareCal.closest("ul").appendChild(li);
-}
+        // ボタンをDOMに追加
+        li.append(icon, googleShareCal);
+        yahooShareCal.closest("ul").appendChild(li);
+    }
+}, 1000);
