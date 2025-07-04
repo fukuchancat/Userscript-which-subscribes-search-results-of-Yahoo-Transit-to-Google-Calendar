@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Yahoo!路線情報の検索結果をGoogleカレンダーに登録するユーザースクリプト
-// @version      0.2
+// @version      0.3
 // @description  Yahoo!路線情報の検索結果を、Googleカレンダーに登録するリンクを作成するユーザースクリプトです。ルート全体を一つの予定として登録するのではなく、乗り換えごとに別々の予定として登録します。登録の際、列車名を予定のタイトル、列車の出発・到着時刻を予定の開始・終了時刻、出発駅を予定の場所、発着番線を予定の説明欄に記載します。徒歩は登録しません。深夜バスなど日を跨ぐルートにも対応しています。
 // @author       fukuchan
 // @include      https://transit.yahoo.co.jp/search/*
@@ -8,10 +8,10 @@
 
 const subscribe = event => {
     // ルート情報の親要素を取得
-    const detail = event.target.closest("div[id*=route]");
+    const detail = event.target.closest("div[id*=route], section[id*=route]");
 
     // 時刻の各要素に年月日情報を追加する
-    const searchTime = document.querySelector(".navSearchTime .time");
+    const searchTime = document.querySelector(".navSearchTime .time, .navSearchTime .date");
     const dateNumbers = searchTime.textContent.match(/(\d+)年(\d+)月(\d+)日/);
     const times = detail.querySelectorAll(".time li");
     let previousDate = new Date(dateNumbers[1], dateNumbers[2] - 1, dateNumbers[3]); // ひとつ前の時刻
@@ -79,26 +79,30 @@ if (type == 5) {
 // 既存の「カレンダーに登録」ボタンを取得し、隣に新しいボタンを追加する処理を1秒おきに10回試行する
 let i = 0;
 const intervalId = setInterval(() => {
-    const shareCals = document.querySelectorAll(".shareCal");
-    if (i === 10 || shareCals.length > 0) {
+    i++;
+    const calLinks = document.querySelectorAll(".shareCal, a[data-cl-params*='addcal']");
+
+    if (i === 10 || calLinks.length > 0) {
         clearInterval(intervalId);
     }
-    for (let yahooShareCal of shareCals) {
+
+    for (let yahooCalLink of calLinks) {
         // 「Googleカレンダーに登録」ボタンを作成
         const li = document.createElement("li");
-        const icon = yahooShareCal.closest("li").querySelector(".icnCal").cloneNode(true);
-        const googleShareCal = document.createElement("a");
+        const icon = document.createElement("span");
+        icon.className = "icnCal";
+        const googleCalLink = document.createElement("a");
 
         // ボタンにイベントを設定
-        googleShareCal.href = "javascript:void(0);";
-        googleShareCal.addEventListener("click", subscribe);
+        googleCalLink.href = "javascript:void(0);";
+        googleCalLink.addEventListener("click", subscribe);
 
         // ボタンの文言変更
-        yahooShareCal.textContent = "Yahoo!カレンダーに登録";
-        googleShareCal.textContent = "Googleカレンダーに登録";
+        googleCalLink.textContent = "Googleカレンダーに登録";
+        yahooCalLink.textContent = "Yahoo!カレンダーに登録";
 
         // ボタンをDOMに追加
-        li.append(icon, googleShareCal);
-        yahooShareCal.closest("ul").appendChild(li);
+        li.append(icon, googleCalLink);
+        yahooCalLink.closest("ul").appendChild(li);
     }
 }, 1000);
