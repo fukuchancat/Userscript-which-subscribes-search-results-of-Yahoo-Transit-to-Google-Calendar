@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Yahoo!路線情報の検索結果をGoogleカレンダーに登録するユーザースクリプト
-// @version      0.3
+// @version      0.4
 // @description  Yahoo!路線情報の検索結果を、Googleカレンダーに登録するリンクを作成するユーザースクリプトです。ルート全体を一つの予定として登録するのではなく、乗り換えごとに別々の予定として登録します。登録の際、列車名を予定のタイトル、列車の出発・到着時刻を予定の開始・終了時刻、出発駅を予定の場所、発着番線を予定の説明欄に記載します。徒歩は登録しません。深夜バスなど日を跨ぐルートにも対応しています。
 // @author       fukuchan
 // @include      https://transit.yahoo.co.jp/search/*
@@ -42,7 +42,7 @@ const subscribe = event => {
         }
 
         // 出発駅
-        const location = origin.querySelector("dl>dt>a").textContent;
+        const location = origin.querySelector("dl>dt").textContent.replace(/【乗換不要】$/, "");
 
         // 列車名
         const transport = access.querySelector(".transport div");
@@ -76,33 +76,36 @@ if (type == 5) {
     return;
 }
 
-// 既存の「カレンダーに登録」ボタンを取得し、隣に新しいボタンを追加する処理を1秒おきに10回試行する
+// 「ルートの共有」にボタンを追加する処理を1秒おきに10回試行する
 let i = 0;
 const intervalId = setInterval(() => {
     i++;
-    const calLinks = document.querySelectorAll(".shareCal, a[data-cl-params*='addcal']");
+    const shareLists = document.querySelectorAll(".detail.share ul");
 
-    if (i === 10 || calLinks.length > 0) {
+    if (i === 10 || shareLists.length > 0) {
         clearInterval(intervalId);
     }
 
-    for (let yahooCalLink of calLinks) {
+    for (let shareList of shareLists) {
         // 「Googleカレンダーに登録」ボタンを作成
         const li = document.createElement("li");
         const icon = document.createElement("span");
         icon.className = "icnCal";
         const googleCalLink = document.createElement("a");
+        googleCalLink.textContent = "Googleカレンダーに登録";
 
         // ボタンにイベントを設定
         googleCalLink.href = "javascript:void(0);";
         googleCalLink.addEventListener("click", subscribe);
 
-        // ボタンの文言変更
-        googleCalLink.textContent = "Googleカレンダーに登録";
-        yahooCalLink.textContent = "Yahoo!カレンダーに登録";
-
         // ボタンをDOMに追加
         li.append(icon, googleCalLink);
-        yahooCalLink.closest("ul").appendChild(li);
+        shareList.appendChild(li);
+
+        // 既存ボタンがあれば文言を変更
+        const yahooCalLink = shareList.querySelector(".shareCal, a[data-cl-params*='addcal'], form button[type='submit']");
+        if (yahooCalLink) {
+            yahooCalLink.textContent = "Yahoo!カレンダーに登録";
+        }
     }
 }, 1000);
